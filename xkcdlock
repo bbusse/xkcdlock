@@ -81,7 +81,7 @@ xkcd_get_latest_image() {
     fi
 
     log "Looking for latest image"
-    local img_url=$(curl -s http://xkcd.com/index.html | \
+    local img_url=$(curl -s https://xkcd.com/index.html | \
                     awk '/Image URL \(for hotlinking\/embedding\): / {print $5}' | \
                     awk 'BEGIN{FS="<";} {print $1}')
 
@@ -116,7 +116,7 @@ xkcd_get_all_images() {
     fi
 
     log "Looking for latest image"
-    local nimg_latest=$(curl -s http://xkcd.com/index.html | \
+    local nimg_latest=$(curl -s https://xkcd.com/index.html | \
                         awk '/Permanent link to this comic: / {print $6}' | \
                         awk 'BEGIN{FS="/";} {print $4}')
 
@@ -140,7 +140,7 @@ xkcd_get_all_images() {
 }
 
 xkcd_get_hotlink_url() {
-    local url="http://xkcd.com/$i"
+    local url="https://xkcd.com/$i"
     local url_hotlink="$(curl -sL $url | awk '/Image URL \(for hotlinking\/embedding\): / {print $5}')"
     echo $url_hotlink
 }
