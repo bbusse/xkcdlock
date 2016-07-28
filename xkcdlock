@@ -1,0 +1,285 @@
+#!/usr/bin/env rbash
+
+# xkcd_lock v1
+#
+# A wrapper around i3lock to display xkcd images on the lock screen
+#
+# Note that 'latest' needs an internet connection for the download!
+# If the download fails it falls back to a specific hard-coded image
+#
+# Builtin is a function to download all images.
+#
+# Dependencies: rbash, i3lock, xrandr, awk, curl
+#
+# © 2016 Björn Busse (see also: LICENSE)
+# bbusse@baerlin.eu
+#
+# Thanks to Randall Patrick Munroe! BTC 1FhCLQK2ZXtCUQDtG98p6fVH7S6mxAsEey
+# Thanks to Michael Stapelberg for an awesome window manager - i3
+#
+# TODO:
+# - make sure we do not exceed screen boundaries in x and y
+# - add tooltip overlay and xkcd number
+# - parallelize downloads
+
+[[ "$TRACE" ]] && set -x
+set -eo pipefail
+
+readonly SCRIPT_NAME=$(basename $0)
+
+# screensaver executable
+LOCK_BIN="i3lock"
+# verbosity
+VERBOSE=0
+# "latest" or "random"
+IMG_CHOICE="random"
+# path to images
+IMG_PATH="${HOME}/Pictures/xkcd_comics"
+# default / fallback image
+IMG_DEFAULT="not_really_into_pokemon.png"
+# background colour
+BG_COLOUR="white"
+
+DOWNLOAD_DISCLAIMER="\nThe downloaded images will end up in your current working directory.\n\
+Since we are using restricted bash, we can not change path.\n\
+Use '-y' instead of '-d' to really start the download to the current working directory.\n"
+
+log() {
+    if (( 1=="${VERBOSE}" )); then
+        echo "$@" >&2
+    fi
+
+    logger -p user.notice -t $SCRIPT_NAME "$@"
+}
+
+error() {
+    echo "$@" >&2
+    logger -p user.error -t $SCRIPT_NAME "$@"
+}
+
+# does not work with restricted bash (bash -r/rbash)
+get_script_path() {
+    echo $(dirname $(readlink -f $0))
+}
+
+show_help() {
+    printf "\n xkcd_lock v1\n\n\
+ Available options are:\n\n \
+   -d  download images to current working directory\n \
+   -h  show this help\n \
+   -i  show specific image file - overrides '-m'\n \
+   -l  lock program: one of i3lock/swaylock\n \
+   -m  latest|random                                   default: random\n \
+   -v  be verbose\n\n"
+}
+
+xkcd_get_latest_image() {
+    if [[ -z $(which curl) ]]; then
+        error "Could not find curl to get latest image"
+        exit 1
+    fi
+
+    log "Looking for latest image"
+    local img_url=$(curl -s http://xkcd.com/index.html | \
+                    awk '/Image URL \(for hotlinking\/embedding\): / {print $5}' | \
+                    awk 'BEGIN{FS="<";} {print $1}')
+
+    if [[ -z $img_url ]]; then
+        error "Can not download latest image, using fallback image"
+        local img_fn="${IMG_DEFAULT}"
+    else
+        log "Downloading: $img_url"
+        curl -sO --max-time 6 "$img_url"
+
+        if [[ 0="$?" ]]; then
+            local img_fn=$(echo "$img_url" | awk 'BEGIN{FS="/";} {print $5}')
+        else
+            error "Can not download latest image, using fallback image"
+            local img_fn="${IMG_DEFAULT}"
+        fi
+    fi
+
+    echo "$img_fn"
+}
+
+xkcd_get_img_name() {
+    echo $(echo "$img_url_hotlink" | awk 'BEGIN{FS="/";} {print $5}')
+}
+
+xkcd_get_all_images() {
+    VERBOSE="1"
+
+    if [[ -z $(which curl) ]]; then
+        error "Could not find curl to download images"
+        exit 1
+    fi
+
+    log "Looking for latest image"
+    local nimg_latest=$(curl -s http://xkcd.com/index.html | \
+                        awk '/Permanent link to this comic: / {print $6}' | \
+                        awk 'BEGIN{FS="/";} {print $4}')
+
+    log "Found: $nimg_latest"
+
+    for ((i=1; i<=$nimg_latest; i++)); do
+        local img_url_hotlink=$(xkcd_get_hotlink_url $i)
+        local img_name=$(xkcd_get_img_name $img_url_hotlink)
+
+        if [[ -e "$img_name" ]]; then
+            log "$img_name exists. Skipping download"
+            continue
+        fi
+
+        log "Downloading ${i} ${img_url_hotlink} (${img_name})"
+        local r=$(curl -sO $img_url_hotlink)
+        log "Success: $r"
+    done
+
+    echo 0
+}
+
+xkcd_get_hotlink_url() {
+    local url="http://xkcd.com/$i"
+    local url_hotlink="$(curl -sL $url | awk '/Image URL \(for hotlinking\/embedding\): / {print $5}')"
+    echo $url_hotlink
+}
+
+get_nscreens() {
+    local nscreens=$(xrandr -q | awk '/ connected/ {count++} END {print count}')
+    echo "$nscreens"
+}
+
+screen_get_smallest_resolution() {
+    local res=$(xrandr -q | awk '/*/ {print $1}' \
+                | awk 'BEGIN{FS="x";} NR==1 || $1<min {line=$0; min=$1}; END {print line}')
+
+    echo "$res"
+}
+
+screen_get_highest_resolution() {
+    local res=$(xrandr -q | awk '/*/ {print $1}' \
+                          | awk 'BEGIN{FS="x";} NR==1 || $1>max {line=$0; max=$1}; END {print line}')
+
+    echo "$res"
+}
+
+get_random_image() {
+    local img_fn="$(find $IMG_PATH -type f | shuf -n 1)"
+
+    if ! [[ -e "$img_fn" ]]; then
+        error "Could not find image to display"
+    fi
+
+    echo "$img_fn"
+}
+
+resize_image() {
+    local tmp_file=$(mktemp)
+
+    log "Resizing $img_fn to $res and saving image to $tmp_file"
+    convert -adaptive-resize $res $img_fn $tmp_file
+
+    if ! [[ -e "$tmp_file" ]]; then
+        error "Could not find resized image"
+        exit 1
+    fi
+
+    echo "$tmp_file"
+}
+
+center_image() {
+    local tmp_file=$(mktemp)
+
+    log "Centering $tmp_file and saving image to $tmp_file"
+    convert $tmp_file_r -gravity center -background $BG_COLOUR -extent $res $tmp_file
+
+    if ! [[ -e "$tmp_file" ]]; then
+        error "Could not find centered image"
+        exit 1
+    fi
+
+    echo "$tmp_file"
+}
+
+prepare_image() {
+    local res=$(screen_get_highest_resolution)
+
+    local tmp_file_r=$(resize_image $img_fn $res)
+    local tmp_file_c=$(center_image $tmp_file_r $res)
+
+    echo "$tmp_file_c"
+}
+
+screen_lock() {
+    local img_fn_final=$(prepare_image $img_fn)
+
+    log "Locking screen with $img_fn"
+    $LOCK_BIN -i $img_fn_final
+}
+
+main() {
+    local locker=$(which $LOCK_BIN)
+    local OPTIND
+
+    while getopts "h?i:l:vm:dy" opt; do
+        case "$opt" in
+        d)
+            printf "%s${DOWNLOAD_DISCLAIMER}"
+            printf "%s\nCurrent working directory: ${PWD}\n\n"
+            exit 0
+            ;;
+        h|\?)
+            show_help
+            exit 0
+            ;;
+        i)
+            local img_fn="${OPTARG}"
+            local r=$(screen_lock $img_fn)
+            exit 0
+            ;;
+        l)
+            if [[ "sway"="${OPTARG}" ]]; then
+               LOCK_BIN="swaylock"
+            fi
+            ;;
+        m)
+            IMG_CHOICE="${OPTARG}"
+            ;;
+        v)
+            VERBOSE=1
+            ;;
+        y)
+            r=$(xkcd_get_all_images)
+            exit 0
+        esac
+    done
+
+    if ! [[ -d "$IMG_PATH" ]]; then
+        error "Image directory does not exist: $IMG_PATH"
+        exit 1
+    fi
+
+    if [[ -z $(which xrandr) ]]; then
+        error "Could not find xrandr to determine screen size"
+        exit 1
+    fi
+
+    if [[ -z "$locker" ]]; then
+        error "Could not find screen locker: $lock_bin"
+        exit 1
+    fi
+
+    if [[ -z $(which convert) ]]; then
+        error "Could not find $convert_bin \nYou need imagick"
+        exit 1
+    fi
+
+    case "$IMG_CHOICE" in
+        "latest")   local img_fn=$(xkcd_get_latest_image);;
+        "random")   local img_fn=$(get_random_image);;
+    esac
+
+    screen_lock $img_fn
+}
+
+main "$@"
