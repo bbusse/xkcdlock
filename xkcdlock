@@ -2,7 +2,10 @@
 
 # xkcd_lock v1
 #
-# A wrapper around i3lock to display xkcd images on the lock screen
+# A wrapper around screen lockers to display xkcd images on the lock screen
+#
+# Depending on the given arguments xkcdlock shows a random image, the latest
+# image or an image of choice.
 #
 # Note that 'latest' needs an internet connection for the download!
 # If the download fails it falls back to a specific hard-coded image
@@ -241,6 +244,8 @@ main() {
         l)
             if [[ "sway"="${OPTARG}" ]]; then
                LOCK_BIN="swaylock"
+               echo "Not yet implemented since we have no xrandr with wayland"
+               exit 1
             fi
             ;;
         m)
