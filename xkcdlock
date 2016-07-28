@@ -9,7 +9,8 @@
 #
 # Builtin is a function to download all images.
 #
-# Dependencies: rbash, i3lock, xrandr, awk, curl
+# Dependencies: rbash, i3lock, xrandr, awk, curl,
+#               convert (from imagick)
 #
 # © 2016 Björn Busse (see also: LICENSE)
 # bbusse@baerlin.eu
