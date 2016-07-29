@@ -1,6 +1,6 @@
 #!/usr/bin/env rbash
-
-# xkcd_lock v1
+#
+# xkcdlock v1
 #
 # A wrapper around screen lockers to display xkcd images on the lock screen
 #
@@ -24,6 +24,7 @@
 # TODO:
 # - make sure we do not exceed screen boundaries in x and y
 # - add tooltip overlay and xkcd number
+# - add support for other screen lockers
 # - parallelize downloads
 
 [[ "$TRACE" ]] && set -x
@@ -43,6 +44,9 @@ IMG_PATH="${HOME}/Pictures/xkcd_comics"
 IMG_DEFAULT="not_really_into_pokemon.png"
 # background colour
 BG_COLOUR="white"
+
+declare -a DEPS=("xrandr" "awk" "curl" "convert")
+declare -a DEPS_LOCKER=("i3lock" "swaylock")
 
 DOWNLOAD_DISCLAIMER="\nThe downloaded images will end up in your current working directory.\n\
 Since we are using restricted bash, we can not change path.\n\
@@ -77,12 +81,17 @@ show_help() {
    -v  be verbose\n\n"
 }
 
-xkcd_get_latest_image() {
-    if [[ -z $(which curl) ]]; then
-        error "Could not find curl to get latest image"
-        exit 1
-    fi
+check_dependencies() {
+    for i in "${DEPS[@]}"
+    do
+        if [[ -z $(which "${i}") ]]; then
+            error "Could not find ${i}"
+            exit 1
+        fi
+    done
+}
 
+xkcd_get_latest_image() {
     log "Looking for latest image"
     local img_url=$(curl -s https://xkcd.com/index.html | \
                     awk '/Image URL \(for hotlinking\/embedding\): / {print $5}' | \
@@ -112,12 +121,6 @@ xkcd_get_img_name() {
 
 xkcd_get_all_images() {
     VERBOSE="1"
-
-    if [[ -z $(which curl) ]]; then
-        error "Could not find curl to download images"
-        exit 1
-    fi
-
     log "Looking for latest image"
     local nimg_latest=$(curl -s https://xkcd.com/index.html | \
                         awk '/Permanent link to this comic: / {print $6}' | \
@@ -260,23 +263,10 @@ main() {
         esac
     done
 
+    check_dependencies
+
     if ! [[ -d "$IMG_PATH" ]]; then
         error "Image directory does not exist: $IMG_PATH"
-        exit 1
-    fi
-
-    if [[ -z $(which xrandr) ]]; then
-        error "Could not find xrandr to determine screen size"
-        exit 1
-    fi
-
-    if [[ -z "$locker" ]]; then
-        error "Could not find screen locker: $lock_bin"
-        exit 1
-    fi
-
-    if [[ -z $(which convert) ]]; then
-        error "Could not find $convert_bin \nYou need imagick"
         exit 1
     fi
 
