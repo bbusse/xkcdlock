@@ -126,7 +126,13 @@ xkcd_get_all_images() {
                         awk '/Permanent link to this comic: / {print $6}' | \
                         awk 'BEGIN{FS="/";} {print $4}')
 
-    log "Found: $nimg_latest"
+    if [[ -z "$nimg_latest" ]]; then
+        VERBOSE=1
+        error "Failed to find latest image number, not downloading anything"
+        exit 1
+    else
+        log "Found: $nimg_latest"
+    fi
 
     for ((i=1; i<=$nimg_latest; i++)); do
         local img_url_hotlink=$(xkcd_get_hotlink_url $i)
@@ -138,8 +144,10 @@ xkcd_get_all_images() {
         fi
 
         log "Downloading ${i} ${img_url_hotlink} (${img_name})"
-        local r=$(curl -sO $img_url_hotlink)
-        log "Success: $r"
+        $(curl -sO $img_url_hotlink)
+        if (( 0 != "$?" )); then
+            error "Failed to download ${i}"
+        fi
     done
 
     echo 0
