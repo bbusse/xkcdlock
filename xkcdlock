@@ -116,7 +116,24 @@ xkcd_get_latest_image() {
 }
 
 xkcd_get_img_name() {
-    echo $(echo "$img_url_hotlink" | awk 'BEGIN{FS="/";} {print $5}')
+    local fn=$(echo "$img_url_hotlink" | awk 'BEGIN{FS="/";} {print $5}')
+    IFS='.' read -r -a array <<< "${fn}"
+    fn="${array[0]}"_"${i}"."${array[-1]}"
+    echo "$fn"
+}
+
+xkcd_get_img_name_from_file() {
+    IFS='/' read -r -a array <<< "$img_fn"
+    IFS='.' read -r -a array <<< "${array[-1]}"
+    IFS='_' read -r -a array <<< "${array[0]}"
+    local fn=${array[-1]}
+    echo "$fn"
+}
+
+xkcd_get_img_nr() {
+    IFS='.' read -r -a array <<< "$img_name"
+    IFS='_' read -r -a array <<< "${array[0]}"
+    echo "${array[-1]}"
 }
 
 xkcd_get_all_images() {
@@ -136,7 +153,7 @@ xkcd_get_all_images() {
 
     for ((i=1; i<=$nimg_latest; i++)); do
         local img_url_hotlink=$(xkcd_get_hotlink_url $i)
-        local img_name=$(xkcd_get_img_name $img_url_hotlink)
+        local img_name=$(xkcd_get_img_name $img_url_hotlink $i)
 
         if [[ -e "$img_name" ]]; then
             log "$img_name exists. Skipping download"
@@ -144,7 +161,7 @@ xkcd_get_all_images() {
         fi
 
         log "Downloading ${i} ${img_url_hotlink} (${img_name})"
-        $(curl -sO $img_url_hotlink)
+        $(curl -s $img_url_hotlink -o $img_name)
         if (( 0 != "$?" )); then
             error "Failed to download ${i}"
         fi
@@ -188,6 +205,20 @@ get_random_image() {
     echo "$img_fn"
 }
 
+image_add_text() {
+    local tmp_file=$(mktemp)
+
+    log "Adding number ${img_nr}  to $tmp_file_c and saving image to $tmp_file"
+    $(convert $1 -font xkcd-Regular -gravity Northeast -pointsize 50 -fill green -annotate +50+50 $img_nr $tmp_file)
+
+    if ! [[ -e "$tmp_file" ]]; then
+        error "Could not find image with text overlay"
+        exit 1
+    fi
+
+    echo "$tmp_file"
+}
+
 resize_image() {
     local tmp_file=$(mktemp)
 
@@ -218,11 +249,14 @@ center_image() {
 
 prepare_image() {
     local res=$(screen_get_highest_resolution)
+    local img_name=$(xkcd_get_img_name_from_file $img_fn)
+    local img_nr=$(xkcd_get_img_nr $img_name)
 
     local tmp_file_r=$(resize_image $img_fn $res)
     local tmp_file_c=$(center_image $tmp_file_r $res)
+    local tmp_file_t=$(image_add_text $tmp_file_c $img_nr)
 
-    echo "$tmp_file_c"
+    echo "$tmp_file_t"
 }
 
 screen_lock() {
