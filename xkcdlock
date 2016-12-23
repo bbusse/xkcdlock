@@ -22,10 +22,10 @@
 # Thanks to Michael Stapelberg for an awesome window manager - i3
 #
 # TODO:
-# - make sure we do not exceed screen boundaries in x and y
-# - add tooltip overlay and xkcd number
-# - add support for other screen lockers
-# - parallelize downloads
+# - Make sure we do not exceed screen boundaries in x and y
+# - Prevent text overflow wrt tooltip
+# - Add support for other screen lockers
+# - Parallelize downloads
 
 [[ "$TRACE" ]] && set -x
 set -eo pipefail
@@ -176,6 +176,11 @@ xkcd_get_hotlink_url() {
     echo $url_hotlink
 }
 
+xkcd_get_img_tooltip() {
+    local url="https://xkcd.com/$1"
+    echo $(curl -sL $url | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}')
+}
+
 get_nscreens() {
     local nscreens=$(xrandr -q | awk '/ connected/ {count++} END {print count}')
     echo "$nscreens"
@@ -208,8 +213,8 @@ get_random_image() {
 image_add_text() {
     local tmp_file=$(mktemp)
 
-    log "Adding number ${img_nr}  to $tmp_file_c and saving image to $tmp_file"
-    $(convert $1 -font xkcd-Regular -gravity Northeast -pointsize 50 -fill green -annotate +50+50 $img_nr $tmp_file)
+    log "Adding \""${2}"\" to ${1} and saving image to ${tmp_file}"
+    $(convert "${1}" -font "${5}" -gravity "${3}" -pointsize "${7}" -fill "${4}" $8 -annotate "${6}" "${2}" "${tmp_file}")
 
     if ! [[ -e "$tmp_file" ]]; then
         error "Could not find image with text overlay"
@@ -237,7 +242,7 @@ center_image() {
     local tmp_file=$(mktemp)
 
     log "Centering $tmp_file and saving image to $tmp_file"
-    convert $tmp_file_r -gravity center -background $BG_COLOUR -extent $res $tmp_file
+    $(convert $tmp_file_r -gravity center -background $BG_COLOUR -extent $res $tmp_file)
 
     if ! [[ -e "$tmp_file" ]]; then
         error "Could not find centered image"
@@ -251,12 +256,14 @@ prepare_image() {
     local res=$(screen_get_highest_resolution)
     local img_name=$(xkcd_get_img_name_from_file $img_fn)
     local img_nr=$(xkcd_get_img_nr $img_name)
+    local img_tooltip=$(xkcd_get_img_tooltip $img_nr)
 
     local tmp_file_r=$(resize_image $img_fn $res)
     local tmp_file_c=$(center_image $tmp_file_r $res)
-    local tmp_file_t=$(image_add_text $tmp_file_c $img_nr)
+    local tmp_file_t1=$(image_add_text "${tmp_file_c}" "${img_nr}" "Northeast" "green" "xkcd-Regular" "+50+50" "50")
+    local tmp_file_t2=$(image_add_text "${tmp_file_t1}" "${img_tooltip}" "Southwest" "red" "xkcd-Regular" "+0+0" "30" " -undercolor '#00000080' ")
 
-    echo "$tmp_file_t"
+    echo "$tmp_file_t2"
 }
 
 screen_lock() {
