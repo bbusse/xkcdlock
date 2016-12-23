@@ -13,3 +13,7 @@ Dependencies: rbash, i3lock, xrandr, awk, curl,
               convert (from imagick)
 
 Use 'xkcdlock -h' to show the command help.
+
+In order to use the xkcd font for the image number overlay,
+you need to download it from here: https://github.com/ipython/xkcd-font
+and put the xkcd.otf in your font path, e.g. /usr/share/fonts
