@@ -45,7 +45,7 @@ IMG_DEFAULT="not_really_into_pokemon.png"
 # background colour
 BG_COLOUR="white"
 
-declare -a DEPS=("xrandr" "awk" "curl" "convert")
+declare -a DEPS=("xrandr" "awk" "curl" "convert" "recode")
 declare -a DEPS_LOCKER=("i3lock" "swaylock")
 
 DOWNLOAD_DISCLAIMER="\nThe downloaded images will end up in your current working directory.\n\
@@ -178,7 +178,7 @@ xkcd_get_hotlink_url() {
 
 xkcd_get_img_tooltip() {
     local url="https://xkcd.com/$1"
-    echo $(curl -sL $url | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}')
+    echo $(curl -sL $url | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}' | recode html..UTF8)
 }
 
 get_nscreens() {
