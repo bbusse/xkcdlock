@@ -23,7 +23,9 @@
 #
 # TODO:
 # - Make sure we do not exceed screen boundaries in x and y
-# - Prevent text overflow wrt tooltip
+# - Convert non-png to png
+# - Improve tooltip text border overflow prevention
+#   wrt display resolution (and font size?)
 # - Add support for other screen lockers
 # - Parallelize downloads
 
@@ -44,8 +46,10 @@ IMG_PATH="${HOME}/Pictures/xkcd_comics"
 IMG_DEFAULT="not_really_into_pokemon.png"
 # background colour
 BG_COLOUR="white"
+# Break tooltip every x char to prevent border overflow
+TOOLTIP_MAX_LINE_LEN=120
 
-declare -a DEPS=("xrandr" "awk" "curl" "convert" "recode")
+declare -a DEPS=("xrandr" "awk" "curl" "convert" "recode" "sed" "shuf")
 declare -a DEPS_LOCKER=("i3lock" "swaylock")
 
 DOWNLOAD_DISCLAIMER="\nThe downloaded images will end up in your current working directory.\n\
@@ -181,6 +185,23 @@ xkcd_get_img_tooltip() {
     echo $(curl -sL $url | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}' | recode html..UTF8)
 }
 
+xkcd_format_tooltip() {
+    local ntext=${#text}
+    local nbreaks=$((ntext / TOOLTIP_MAX_LINE_LEN))
+    local nbreak=$((ntext - TOOLTIP_MAX_LINE_LEN))
+    local m=$((nbreaks * TOOLTIP_MAX_LINE_LEN))
+    local nrest=$((ntext - m - 1))
+
+    if (( "$nbreak" > 0 )); then
+        local text_tok_start=${text:0:$nrest}
+        local text_tok_end=${text:ntok_end}
+        text_tok_end=`echo "$text_tok_end" | sed "s/.\{$TOOLTIP_MAX_LINE_LEN\}/&\\n/g"`
+        echo "${text_tok_start}\\n${text_tok_end}"
+    else
+        echo "$text"
+    fi
+}
+
 get_nscreens() {
     local nscreens=$(xrandr -q | awk '/ connected/ {count++} END {print count}')
     echo "$nscreens"
@@ -256,7 +277,8 @@ prepare_image() {
     local res=$(screen_get_highest_resolution)
     local img_name=$(xkcd_get_img_name_from_file $img_fn)
     local img_nr=$(xkcd_get_img_nr $img_name)
-    local img_tooltip=$(xkcd_get_img_tooltip $img_nr)
+    local text=$(xkcd_get_img_tooltip $img_nr)
+    img_tooltip=$(xkcd_format_tooltip $text)
 
     local tmp_file_r=$(resize_image $img_fn $res)
     local tmp_file_c=$(center_image $tmp_file_r $res)
