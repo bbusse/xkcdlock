@@ -23,7 +23,6 @@
 #
 # TODO:
 # - Make sure we do not exceed screen boundaries in x and y
-# - Convert non-png to png
 # - Improve tooltip text border overflow prevention
 #   wrt display resolution (and font size?)
 # - Add support for other screen lockers
@@ -164,10 +163,14 @@ xkcd_get_all_images() {
             continue
         fi
 
-        log "Downloading ${i} ${img_url_hotlink} (${img_name})"
+        log "Downloading #${i} ${img_url_hotlink} (${img_name})"
         $(curl -s $img_url_hotlink -o $img_name)
         if (( 0 != "$?" )); then
             error "Failed to download ${i}"
+        fi
+
+        if [ "${img_name: -3}" == "jpg" ]; then
+            convert_image $img_name
         fi
     done
 
@@ -229,6 +232,14 @@ get_random_image() {
     fi
 
     echo "$img_fn"
+}
+
+convert_image() {
+    local img_name_len=$((${#img_name} - 4))
+    local img_name_png=${img_name:0:$img_name_len}".png"
+    log "Converting $img_name to $img_name_png"
+    $(convert $img_name $img_name_png)
+    $(rm -f $img_name)
 }
 
 image_add_text() {
