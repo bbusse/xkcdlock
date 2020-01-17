@@ -12,7 +12,7 @@
 #
 # Builtin is a function to download all images.
 #
-# Dependencies: rbash, i3lock, xrandr, awk, curl,
+# Dependencies: rbash, i3lock/swaylock, xrandr, awk, curl,
 #               convert (from imagick)
 #
 # © 2016 Björn Busse (see also: LICENSE)
@@ -34,13 +34,13 @@ set -eo pipefail
 readonly SCRIPT_NAME=$(basename $0)
 
 # screensaver executable
-LOCK_BIN="i3lock"
+LOCK_BIN="swaylock"
 # verbosity
 VERBOSE=0
 # "latest" or "random"
 IMG_CHOICE="random"
 # path to images
-IMG_PATH="${HOME}/Pictures/xkcd_comics"
+IMG_PATH="${HOME}/Pictures/xkcd"
 # default / fallback image
 IMG_DEFAULT="not_really_into_pokemon.png"
 # background colour
@@ -48,7 +48,7 @@ BG_COLOUR="white"
 # Break tooltip every x char to prevent border overflow
 TOOLTIP_MAX_LINE_LEN=120
 
-declare -a DEPS=("xrandr" "awk" "curl" "convert" "recode" "sed" "shuf")
+declare -a DEPS=("xrandr" "awk" "curl" "convert" "recode" "sed")
 declare -a DEPS_LOCKER=("i3lock" "swaylock")
 
 DOWNLOAD_DISCLAIMER="\nThe downloaded images will end up in your current working directory.\n\
@@ -225,7 +225,7 @@ screen_get_highest_resolution() {
 }
 
 get_random_image() {
-    local img_fn="$(find $IMG_PATH -type f | shuf -n 1)"
+    local img_fn="$(find $IMG_PATH -type f | sort -R | head -n1 )"
 
     if ! [[ -e "$img_fn" ]]; then
         error "Could not find image to display"
