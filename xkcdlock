@@ -218,7 +218,7 @@ screen_get_smallest_resolution() {
 }
 
 screen_get_highest_resolution() {
-    local res=$(xrandr -q | awk '/*/ {print $1}' \
+    local res=$(xrandr -q | awk '/\*/ {print $1}' \
                           | awk 'BEGIN{FS="x";} NR==1 || $1>max {line=$0; max=$1}; END {print line}')
 
     echo "$res"
