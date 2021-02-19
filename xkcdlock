@@ -1,4 +1,4 @@
-#!/usr/bin/env rbash
+#!/usr/bin/env bash
 #
 # xkcdlock v1
 #
@@ -48,6 +48,11 @@ BG_COLOUR="white"
 # Break tooltip every x char to prevent border overflow
 TOOLTIP_MAX_LINE_LEN=120
 
+FONT="xkcd Script"
+FONT_FILE="xkcd-script.ttf"
+FONT_PATH="${HOME}/.local/share/fonts/${FONT_FILE}"
+URL_FONT="https://github.com/ipython/xkcd-font/raw/master/xkcd-script/font/xkcd-script.ttf"
+
 declare -a DEPS=("xrandr" "awk" "curl" "convert" "recode" "sed")
 declare -a DEPS_LOCKER=("i3lock" "swaylock")
 
@@ -92,6 +97,13 @@ check_dependencies() {
             exit 1
         fi
     done
+
+    if fc-list -q "${FONT}"; then
+        log "Font exists"
+    else
+        log "Downloading font"
+        curl -o "${HOME}/${FONT_PATH}" -sLO "${URL_FONT}"
+    fi
 }
 
 xkcd_get_latest_image() {
@@ -293,8 +305,8 @@ prepare_image() {
 
     local tmp_file_r=$(resize_image $img_fn $res)
     local tmp_file_c=$(center_image $tmp_file_r $res)
-    local tmp_file_t1=$(image_add_text "${tmp_file_c}" "${img_nr}" "Northeast" "green" "xkcd-Regular" "+50+50" "50")
-    local tmp_file_t2=$(image_add_text "${tmp_file_t1}" "${img_tooltip}" "Southwest" "red" "xkcd-Regular" "+0+0" "30" " -undercolor '#00000080' ")
+    local tmp_file_t1=$(image_add_text "${tmp_file_c}" "${img_nr}" "Northeast" "green" "${FONT_PATH}" "+50+50" "50")
+    local tmp_file_t2=$(image_add_text "${tmp_file_t1}" "${img_tooltip}" "Southwest" "red" "${FONT_PATH}" "+0+0" "30" " -undercolor '#00000080' ")
 
     echo "$tmp_file_t2"
 }
