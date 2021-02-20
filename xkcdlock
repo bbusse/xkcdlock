@@ -22,9 +22,6 @@
 # Thanks to Michael Stapelberg for an awesome window manager - i3
 #
 # TODO:
-# - Make sure we do not exceed screen boundaries in x and y
-# - Improve tooltip text border overflow prevention
-#   wrt display resolution (and font size?)
 # - Add support for other screen lockers
 # - Parallelize downloads
 
@@ -47,6 +44,9 @@ IMG_DEFAULT="not_really_into_pokemon.png"
 BG_COLOUR="white"
 # Break tooltip every x char to prevent border overflow
 TOOLTIP_MAX_LINE_LEN=100
+
+# git rev-list --count HEAD
+VERSION=19
 
 # Reduce image size by x pixels in x and y dimension
 # so that the tooltip does not overlay image
@@ -83,15 +83,21 @@ get_script_path() {
 }
 
 show_help() {
-    printf "\n xkcd_lock v1\n\n\
+    printf "\n xkcdlock ${VERSION}\n\n\
  Available options are:\n\n \
    -d  download images to current working directory\n \
    -h  show this help\n \
    -i  show specific image file - overrides '-m'\n \
    -l  lock program: one of i3lock/swaylock\n \
    -m  latest|random                                   default: random\n \
-   -v  be verbose\n\n"
+   -v  be verbose\n \
+   -V  show version\n\n"
 }
+
+show_version() {
+    printf "\n xkcdlock ${VERSION}\n\n"
+}
+
 
 check_dependencies() {
     for i in "${DEPS[@]}"
@@ -324,7 +330,7 @@ main() {
     local locker=$(which $LOCK_BIN)
     local OPTIND
 
-    while getopts "h?i:l:vm:dy" opt; do
+    while getopts "h?i:l:vVm:dy" opt; do
         case "$opt" in
         d)
             printf "%s${DOWNLOAD_DISCLAIMER}"
@@ -352,6 +358,10 @@ main() {
             ;;
         v)
             VERBOSE=1
+            ;;
+        V)
+            show_version
+            exit 0
             ;;
         y)
             r=$(xkcd_get_all_images)
