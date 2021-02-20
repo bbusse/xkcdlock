@@ -46,7 +46,7 @@ BG_COLOUR="white"
 TOOLTIP_MAX_LINE_LEN=100
 
 # git rev-list --count HEAD
-VERSION=22
+VERSION=23
 
 # Reduce image size by x pixels in x and y dimension
 # so that the tooltip does not overlay image
@@ -85,13 +85,13 @@ get_script_path() {
 show_help() {
     printf "\n xkcdlock ${VERSION}\n\n\
  Available options are:\n\n \
-   -d  download images to current working directory\n \
-   -h  show this help\n \
-   -i  show specific image file - overrides '-m'\n \
-   -l  lock program: one of i3lock/swaylock\n \
-   -m  latest|random                                   default: random\n \
-   -v  be verbose\n \
-   -V  show version\n\n"
+   -d  Download images to current working directory\n \
+   -h  Show this help\n \
+   -i  Show specific image file - overrides '-m'\n \
+   -l  Lock program: one of i3lock/swaylock\n \
+   -m  Mode: latest | random                            default: random\n \
+   -v  Be verbose\n \
+   -V  Show version\n\n"
 }
 
 show_version() {

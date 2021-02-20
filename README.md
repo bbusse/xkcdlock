@@ -18,15 +18,15 @@ Use ```xkcdlock -h``` to show the command help
 ```
 $ xkcdlock -h
 
- xkcdlock 21
+ xkcdlock 23
 
  Available options are:
 
-    -d  download images to current working directory
-    -h  show this help
-    -i  show specific image file - overrides '-m'
-    -l  lock program: one of i3lock/swaylock
-    -m  latest|random                                   default: random
-    -v  be verbose
-    -V  show version
+    -d  Download images to current working directory
+    -h  Show this help
+    -i  Show specific image file - overrides '-m'
+    -l  Lock program: one of i3lock/swaylock
+    -m  Mode: latest | random                                   default: random
+    -v  Be verbose
+    -V  Show version
 ```
