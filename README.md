@@ -15,3 +15,18 @@ rbash, xrandr, awk, curl, convert (from imagick)
 
 ## Usage
 Use ```xkcdlock -h``` to show the command help
+```
+$ xkcdlock -h
+
+ xkcdlock 21
+
+ Available options are:
+
+    -d  download images to current working directory
+    -h  show this help
+    -i  show specific image file - overrides '-m'
+    -l  lock program: one of i3lock/swaylock
+    -m  latest|random                                   default: random
+    -v  be verbose
+    -V  show version
+```

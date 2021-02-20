@@ -46,7 +46,7 @@ BG_COLOUR="white"
 TOOLTIP_MAX_LINE_LEN=100
 
 # git rev-list --count HEAD
-VERSION=21
+VERSION=22
 
 # Reduce image size by x pixels in x and y dimension
 # so that the tooltip does not overlay image
