@@ -28,7 +28,7 @@
 [[ "$TRACE" ]] && set -x
 set -eo pipefail
 
-readonly SCRIPT_NAME=$(basename $0)
+readonly SCRIPT_NAME=$(basename "$0")
 
 # screensaver executable
 LOCK_BIN="swaylock"
@@ -58,7 +58,6 @@ FONT_PATH="${HOME}/.local/share/fonts/${FONT_FILE}"
 URL_FONT="https://github.com/ipython/xkcd-font/raw/master/xkcd-script/font/xkcd-script.ttf"
 
 declare -a DEPS=("xrandr" "awk" "curl" "convert" "fold" "recode" "sed")
-declare -a DEPS_LOCKER=("i3lock" "swaylock")
 
 DOWNLOAD_DISCLAIMER="\nThe downloaded images will end up in your current working directory.\n\
 Since we are using restricted bash, we can not change path.\n\
@@ -69,21 +68,21 @@ log() {
         echo "$@" >&2
     fi
 
-    logger -p user.notice -t $SCRIPT_NAME "$@"
+    logger -p user.notice -t "$SCRIPT_NAME" "$@"
 }
 
 error() {
     echo "$@" >&2
-    logger -p user.error -t $SCRIPT_NAME "$@"
+    logger -p user.error -t "$SCRIPT_NAME" "$@"
 }
 
 # does not work with restricted bash (bash -r/rbash)
 get_script_path() {
-    echo $(dirname $(readlink -f $0))
+    dirname "$(readlink -f "$0")"
 }
 
 show_help() {
-    printf "\n xkcdlock ${VERSION}\n\n\
+    printf "\n xkcdlock %s\n\n\
  Available options are:\n\n \
    -d  Download images to current working directory\n \
    -h  Show this help\n \
@@ -91,11 +90,11 @@ show_help() {
    -l  Lock program: one of i3lock/swaylock\n \
    -m  Mode: latest | random                            default: random\n \
    -v  Be verbose\n \
-   -V  Show version\n\n"
+   -V  Show version\n\n" ${VERSION}
 }
 
 show_version() {
-    printf "\n xkcdlock ${VERSION}\n\n"
+    printf "\n xkcdlock %s\n\n" ${VERSION}
 }
 
 
@@ -118,22 +117,24 @@ check_dependencies() {
 
 xkcd_get_latest_image() {
     log "Looking for latest image"
-    local img_url=$(curl -s https://xkcd.com/index.html | \
-                    awk '/Image URL \(for hotlinking\/embedding\): / {print $5}' | \
-                    awk 'BEGIN{FS="<";} {print $1}')
+    local img_url
+    img_url=$(curl -s https://xkcd.com/index.html | \
+              awk '/Image URL \(for hotlinking\/embedding\): / {print $5}' | \
+              awk 'BEGIN{FS="<";} {print $1}')
 
     if [[ -z $img_url ]]; then
         error "Can not download latest image, using fallback image"
         local img_fn="${IMG_DEFAULT}"
     else
         log "Downloading: $img_url"
-        curl -sO --max-time 6 "$img_url"
 
-        if [[ 0="$?" ]]; then
-            local img_fn=$(echo "$img_url" | awk 'BEGIN{FS="/";} {print $5}')
+        if curl -sO --max-time 6 "$img_url"; then
+            local img_fn
+            img_fn=$(echo "$img_url" | awk 'BEGIN{FS="/";} {print $5}')
         else
             error "Can not download latest image, using fallback image"
-            local img_fn="${IMG_DEFAULT}"
+            local img_fn
+            img_fn="${IMG_DEFAULT}"
         fi
     fi
 
@@ -141,7 +142,8 @@ xkcd_get_latest_image() {
 }
 
 xkcd_get_img_name() {
-    local fn=$(echo "$img_url_hotlink" | awk 'BEGIN{FS="/";} {print $5}')
+    local fn
+    fn=$(echo "$img_url_hotlink" | awk 'BEGIN{FS="/";} {print $5}')
     IFS='.' read -r -a array <<< "${fn}"
     fn="${array[0]}"_"${i}"."${array[-1]}"
     echo "$fn"
@@ -164,9 +166,10 @@ xkcd_get_img_nr() {
 xkcd_get_all_images() {
     VERBOSE="1"
     log "Looking for latest image"
-    local nimg_latest=$(curl -s https://xkcd.com/index.html | \
-                        awk '/Permanent link to this comic: / {print $6}' | \
-                        awk 'BEGIN{FS="/";} {print $4}')
+    local nimg_latest
+    nimg_latest=$(curl -s https://xkcd.com/index.html | \
+                  awk '/Permanent link to this comic: / {print $6}' | \
+                  awk 'BEGIN{FS="/";} {print $4}')
 
     if [[ -z "$nimg_latest" ]]; then
         VERBOSE=1
@@ -176,9 +179,11 @@ xkcd_get_all_images() {
         log "Found: $nimg_latest"
     fi
 
-    for ((i=1; i<=$nimg_latest; i++)); do
-        local img_url_hotlink=$(xkcd_get_hotlink_url $i)
-        local img_name=$(xkcd_get_img_name $img_url_hotlink $i)
+    for ((i=1; i<=nimg_latest; i++)); do
+        local img_url_hotlink
+        img_url_hotlink=$(xkcd_get_hotlink_url "$i")
+        local img_name
+        img_name=$(xkcd_get_img_name "$img_url_hotlink" "$i")
 
         if [[ -e "$img_name" ]]; then
             log "$img_name exists. Skipping download"
@@ -186,13 +191,12 @@ xkcd_get_all_images() {
         fi
 
         log "Downloading #${i} ${img_url_hotlink} (${img_name})"
-        $(curl -s $img_url_hotlink -o $img_name)
-        if (( 0 != "$?" )); then
+        if ! curl -s "$img_url_hotlink" -o "$img_name"; then
             error "Failed to download ${i}"
         fi
 
         if [ "${img_name: -3}" == "jpg" ]; then
-            convert_image $img_name
+            convert_image "$img_name"
         fi
     done
 
@@ -201,41 +205,48 @@ xkcd_get_all_images() {
 
 xkcd_get_hotlink_url() {
     local url="https://xkcd.com/$i"
-    local url_hotlink="$(curl -sL $url | awk '/Image URL \(for hotlinking\/embedding\): / {print $5}')"
-    echo $url_hotlink
+    local url_hotlink
+    url_hotlink="$(curl -sL $url | awk '/Image URL \(for hotlinking\/embedding\): / {print $5}')"
+    echo "$url_hotlink"
 }
 
 xkcd_get_img_tooltip() {
-    local url="https://xkcd.com/$1"
-    echo $(curl -sL $url | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}' | recode html..UTF8)
+    local url
+    url="https://xkcd.com/$1"
+    curl -sL "$url" | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}' | recode html..UTF8
 }
 
 xkcd_format_tooltip() {
-    local text=$(echo $text | fold -s -w  $TOOLTIP_MAX_LINE_LEN)
+    local text
+    text=$(echo "$1" | fold -s -w  $TOOLTIP_MAX_LINE_LEN)
     echo "$text"
 }
 
 get_nscreens() {
-    local nscreens=$(xrandr -q | awk '/ connected/ {count++} END {print count}')
+    local nscreens
+    nscreens=$(xrandr -q | awk '/ connected/ {count++} END {print count}')
     echo "$nscreens"
 }
 
 screen_get_smallest_resolution() {
-    local res=$(xrandr -q | awk '/*/ {print $1}' \
-                | awk 'BEGIN{FS="x";} NR==1 || $1<min {line=$0; min=$1}; END {print line}')
+    local res
+    res=$(xrandr -q | awk '/*/ {print $1}' \
+          | awk 'BEGIN{FS="x";} NR==1 || $1<min {line=$0; min=$1}; END {print line}')
 
     echo "$res"
 }
 
 screen_get_highest_resolution() {
-    local res=$(xrandr -q | awk '/\*/ {print $1}' \
-                          | awk 'BEGIN{FS="x";} NR==1 || $1>max {line=$0; max=$1}; END {print line}')
+    local res
+    res=$(xrandr -q | awk '/\*/ {print $1}' \
+                    | awk 'BEGIN{FS="x";} NR==1 || $1>max {line=$0; max=$1}; END {print line}')
 
     echo "$res"
 }
 
 get_random_image() {
-    local img_fn="$(find $IMG_PATH -type f | sort -R | head -n1 )"
+    local img_fn
+    img_fn="$(find "$IMG_PATH" -type f | sort -R | head -n1 )"
 
     if ! [[ -e "$img_fn" ]]; then
         error "Could not find image to display"
@@ -248,15 +259,16 @@ convert_image() {
     local img_name_len=$((${#img_name} - 4))
     local img_name_png=${img_name:0:$img_name_len}".png"
     log "Converting $img_name to $img_name_png"
-    $(convert $img_name $img_name_png)
-    $(rm -f $img_name)
+    convert "$img_name" "$img_name_png"
+    rm -f "$img_name"
 }
 
 image_add_text() {
-    local tmp_file=$(mktemp)
+    local tmp_file
+    tmp_file=$(mktemp)
 
-    log "Adding \""${2}"\" to ${1} and saving image to ${tmp_file}"
-    $(convert "${1}" -font "${5}" -gravity "${3}" -pointsize "${7}" -fill "${4}" $8 -annotate "${6}" "${2}" "${tmp_file}")
+    log "Adding ${2} to ${1} and saving image to ${tmp_file}"
+    convert "${1}" -font "${5}" -gravity "${3}" -pointsize "${7}" -fill "${4}" $8 -annotate "${6}" "${2}" "${tmp_file}"
 
     if ! [[ -e "$tmp_file" ]]; then
         error "Could not find image with text overlay"
@@ -268,18 +280,22 @@ image_add_text() {
 
 target_image_size() {
     IFS='x'
-    read -a strarr <<< "$1"
-    local img_size_x=`expr "${strarr[0]}" - $IMAGE_PADDING_PX`
-    local img_size_y=`expr "${strarr[1]}" - $IMAGE_PADDING_PX`
-    local img_size="${img_size_x}x${img_size_y}"
+    read -r -a strarr <<< "$1"
+    local img_size_x
+    img_size_x=$((strarr[0] - IMAGE_PADDING_PX))
+    local img_size_y
+    img_size_y=$((strarr[1] - IMAGE_PADDING_PX))
+    local img_size
+    img_size="${img_size_x}x${img_size_y}"
     echo "$img_size"
 }
 
 resize_image() {
-    local tmp_file=$(mktemp)
+    local tmp_file
+    tmp_file=$(mktemp)
 
     log "Resizing $img_fn to $2 and saving image to $tmp_file"
-    convert -adaptive-resize $2 $img_fn $tmp_file
+    convert -adaptive-resize "$2" "$img_fn" "$tmp_file"
 
     if ! [[ -e "$tmp_file" ]]; then
         error "Could not find resized image"
@@ -290,10 +306,11 @@ resize_image() {
 }
 
 center_image() {
-    local tmp_file=$(mktemp)
+    local tmp_file
+    tmp_file=$(mktemp)
 
     log "Centering $tmp_file and saving image to $tmp_file"
-    $(convert $tmp_file_r -gravity center -background $BG_COLOUR -extent $res $tmp_file)
+    convert "$tmp_file_r" -gravity center -background "$BG_COLOUR" -extent "$res" "$tmp_file"
 
     if ! [[ -e "$tmp_file" ]]; then
         error "Could not find centered image"
@@ -304,30 +321,40 @@ center_image() {
 }
 
 prepare_image() {
-    local res=$(screen_get_highest_resolution)
-    local img_name=$(xkcd_get_img_name_from_file $img_fn)
-    local img_nr=$(xkcd_get_img_nr $img_name)
-    local text=$(xkcd_get_img_tooltip $img_nr)
-    img_tooltip=$(xkcd_format_tooltip $text)
+    local res
+    res=$(screen_get_highest_resolution)
+    local img_name
+    img_name=$(xkcd_get_img_name_from_file "$img_fn")
+    local img_nr
+    img_nr=$(xkcd_get_img_nr "$img_name")
+    local text
+    text=$(xkcd_get_img_tooltip "$img_nr")
+    local img_tooltip_text
+    img_tooltip_text=$(xkcd_format_tooltip "$text")
 
-    local img_target_size=$(target_image_size $res)
-    local tmp_file_r=$(resize_image $img_fn $img_target_size)
-    local tmp_file_c=$(center_image $tmp_file_r $res)
-    local tmp_file_t1=$(image_add_text "${tmp_file_c}" "${img_nr}" "Northeast" "green" "${FONT_PATH}" "+50+50" "50")
-    local tmp_file_t2=$(image_add_text "${tmp_file_t1}" "${img_tooltip}" "Southwest" "red" "${FONT_PATH}" "+0+0" "30" " -undercolor '#00000080' ")
+    local img_target_size
+    img_target_size=$(target_image_size "$res")
+    local tmp_file_r
+    tmp_file_r=$(resize_image "$img_fn" "$img_target_size")
+    local tmp_file_c
+    tmp_file_c=$(center_image "$tmp_file_r" "$res")
+    local tmp_file_t1
+    tmp_file_t1=$(image_add_text "${tmp_file_c}" "${img_nr}" "Northeast" "green" "${FONT_PATH}" "+50+50" "50")
+    local tmp_file_t2
+    tmp_file_t2=$(image_add_text "${tmp_file_t1}" "${img_tooltip_text}" "Southwest" "red" "${FONT_PATH}" "+0+0" "30" " -undercolor '#00000080' ")
 
     echo "$tmp_file_t2"
 }
 
 screen_lock() {
-    local img_fn_final=$(prepare_image $img_fn)
+    local img_fn_final
+    img_fn_final=$(prepare_image "$img_fn")
 
     log "Locking screen with $img_fn"
-    $LOCK_BIN -i $img_fn_final
+    $LOCK_BIN -i "$img_fn_final"
 }
 
 main() {
-    local locker=$(which $LOCK_BIN)
     local OPTIND
 
     while getopts "h?i:l:vVm:dy" opt; do
@@ -342,12 +369,13 @@ main() {
             exit 0
             ;;
         i)
-            local img_fn="${OPTARG}"
-            local r=$(screen_lock $img_fn)
+            local img_fn
+            img_fn="${OPTARG}"
+            screen_lock "$img_fn"
             exit 0
             ;;
         l)
-            if [[ "sway"="${OPTARG}" ]]; then
+            if [[ "sway" = "${OPTARG}" ]]; then
                LOCK_BIN="swaylock"
                echo "Not yet implemented since we have no xrandr with wayland"
                exit 1
@@ -364,7 +392,7 @@ main() {
             exit 0
             ;;
         y)
-            r=$(xkcd_get_all_images)
+            xkcd_get_all_images
             exit 0
         esac
     done
@@ -377,11 +405,15 @@ main() {
     fi
 
     case "$IMG_CHOICE" in
-        "latest")   local img_fn=$(xkcd_get_latest_image);;
-        "random")   local img_fn=$(get_random_image);;
+        "latest")
+            local img_fn
+            img_fn=$(xkcd_get_latest_image);;
+        "random")
+            local img_fn
+            img_fn=$(get_random_image);;
     esac
 
-    screen_lock $img_fn
+    screen_lock "$img_fn"
 }
 
 main "$@"
