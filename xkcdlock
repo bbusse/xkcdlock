@@ -111,7 +111,7 @@ check_dependencies() {
         log "Font exists"
     else
         log "Downloading font"
-        curl -o "${HOME}/${FONT_PATH}" -sLO "${URL_FONT}"
+        curl -o "${FONT_PATH}" -sLO "${URL_FONT}"
     fi
 }
 
