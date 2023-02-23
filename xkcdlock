@@ -213,7 +213,7 @@ xkcd_get_hotlink_url() {
 xkcd_get_img_tooltip() {
     local url
     url="https://xkcd.com/$1"
-    curl -sL "$url" | grep -A 1 '<div id=\"comic\">' | awk -F "\"" '/src=/ {print $4}' | recode html..UTF8
+    curl -sL "${url}" | grep '{{title text:' | awk -F'[:}]' '{ print $2 }' | recode html..UTF8
 }
 
 xkcd_format_tooltip() {
